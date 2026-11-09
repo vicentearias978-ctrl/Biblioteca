@@ -1,269 +1,198 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Busca libros por título, autor, categoría o ISBN y consulta su disponibilidad.">
-  <title>Préstamo de Libros | Biblioteca</title>
-  <style>
-    * { box-sizing: border-box; }
-
-    body {
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      background: #f5f6f8;
-      color: #222;
-      margin: 0;
-      padding: 2rem 1rem;
-    }
-
-    .container { max-width: 800px; margin: 0 auto; }
-
-    h1 { text-align: center; margin: 0 0 1.5rem; }
-
-    .search-box { position: relative; margin-bottom: 1.5rem; }
-
-    .search-box input {
-      width: 100%;
-      padding: 0.9rem 1rem 0.9rem 2.8rem;
-      font: inherit;
-      border: 2px solid #ddd;
-      border-radius: 12px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    .search-box input:focus { border-color: #4a7dff; }
-
-    .search-box::before {
-      content: "🔍";
-      position: absolute;
-      left: 0.9rem;
-      top: 50%;
-      transform: translateY(-50%);
-      pointer-events: none;
-    }
-
-    .filters {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      margin-bottom: 1rem;
-    }
-
-    .filters button {
-      padding: 0.4rem 0.9rem;
-      border: 1px solid #ccc;
-      border-radius: 20px;
-      background: #fff;
-      cursor: pointer;
-      font-size: 0.85rem;
-    }
-
-    .filters button.active {
-      background: #4a7dff;
-      color: #fff;
-      border-color: #4a7dff;
-    }
-
-    .filters button:focus-visible { outline: 3px solid #9bb7ff; outline-offset: 2px; }
-
-    .results-count { font-size: 0.9rem; color: #666; margin-bottom: 1rem; }
-
-    .book-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: grid;
-      gap: 0.75rem;
-    }
-
-    .book {
-      background: #fff;
-      padding: 1rem 1.2rem;
-      border-radius: 10px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .book h2 { margin: 0 0 0.25rem; font-size: 1.05rem; }
-    .book p { margin: 0; font-size: 0.9rem; color: #666; }
-
-    .status {
-      font-size: 0.8rem;
-      padding: 0.3rem 0.7rem;
-      border-radius: 6px;
-      white-space: nowrap;
-    }
-
-    .status.disponible { background: #e3f7e8; color: #1e7e34; }
-    .status.prestado { background: #fde8e8; color: #b02a2a; }
-
-    .empty { text-align: center; color: #888; padding: 2rem; }
-    mark { background: #fff3a3; padding: 0 2px; border-radius: 3px; }
-
-    @media (max-width: 480px) {
-      body { padding: 1.25rem 0.9rem; }
-      .book { align-items: flex-start; padding: 1rem; }
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Biblioteca escolar</title>
+<style>
+  :root {
+    --bg:#f1f4f7; --surface:#fff; --fg:#14202c; --muted:#566573; --line:#d6dde4;
+    --accent:#1f4fa0; --ok:#17794a; --ok-bg:#e0f2e7; --bad:#a22a2a; --bad-bg:#f7dede; --warn:#9a4a06; --warn-bg:#fbe9d2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0e151c; --surface:#16202a; --fg:#e6ebf0; --muted:#93a1ae; --line:#28343f; --accent:#86aaf2;
+            --ok:#62d193; --ok-bg:#143323; --bad:#f28f8f; --bad-bg:#3b1b1b; --warn:#f2a862; --warn-bg:#382612; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; padding:28px 16px 64px; }
+  .wrap { max-width:900px; margin:0 auto; display:flex; flex-direction:column; gap:18px; }
+  h1 { margin:0; font-size:clamp(28px,6vw,42px); line-height:1.1; letter-spacing:-.02em; }
+  .counts { margin:6px 0 0; color:var(--muted); }
+  input, select { font:inherit; color:inherit; }
+  #q { width:100%; padding:14px 16px; font-size:18px; background:var(--surface); border:2px solid var(--fg); border-radius:6px; }
+  .filters { display:flex; flex-wrap:wrap; gap:12px 16px; align-items:flex-end; }
+  .field { display:flex; flex-direction:column; gap:4px; }
+  .field span { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .ctl { background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:8px 10px; }
+  .list { list-style:none; margin:0; padding:0; background:var(--surface); border-top:3px solid var(--fg); }
+  .row { display:grid; grid-template-columns:90px 1fr 56px 150px; gap:4px 16px; padding:12px 16px; border-bottom:1px solid var(--line); align-items:start; }
+  .head { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); padding-block:8px; }
+  .call { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; color:var(--muted); padding-top:3px; overflow-wrap:anywhere; }
+  .title { font-weight:700; font-size:18px; line-height:1.2; }
+  .author { color:var(--muted); }
+  .cat { font-size:13px; color:var(--muted); }
+  .pill { display:inline-block; padding:3px 10px; border-radius:999px; font-size:14px; font-weight:600; }
+  .ok { background:var(--ok-bg); color:var(--ok); }
+  .warn { background:var(--warn-bg); color:var(--warn); }
+  .bad { background:var(--bad-bg); color:var(--bad); }
+  .empty { padding:36px 16px; text-align:center; color:var(--muted); background:var(--surface); }
+  @media (max-width:640px) {
+    .head { display:none; }
+    .row { grid-template-columns:1fr auto; grid-template-areas:"call year" "main main" "state state"; }
+    .call { grid-area:call; } .year { grid-area:year; padding-top:3px; } .main { grid-area:main; } .state { grid-area:state; }
+  }
+</style>
 </head>
 <body>
-  <main class="container">
-    <h1>📚 Préstamo de Libros</h1>
+<div class="wrap">
+  <header>
+    <h1>Biblioteca escolar</h1>
+    <p class="counts" id="counts">Cargando catálogo…</p>
+  </header>
 
-    <div class="search-box">
-      <input
-        type="search"
-        id="searchInput"
-        aria-label="Buscar libros por título, autor, categoría o ISBN"
-        placeholder="Buscar por título, autor, categoría o ISBN..."
-        autocomplete="off"
-      >
+  <input id="q" type="search" autocomplete="off" placeholder="Buscar por título, autor, año, categoría o ISBN">
+
+  <div class="filters">
+    <label class="field"><span>Disponibilidad</span>
+      <select id="avail" class="ctl">
+        <option value="all">Todos</option>
+        <option value="free">Disponibles</option>
+        <option value="out">Prestados</option>
+      </select>
+    </label>
+    <label class="field"><span>Categoría</span>
+      <select id="cat" class="ctl"><option value="">Todas</option></select>
+    </label>
+    <label class="field"><span>Ordenar por</span>
+      <select id="sort" class="ctl">
+        <option value="titulo">Título (A–Z)</option>
+        <option value="autor">Autor (A–Z)</option>
+        <option value="nuevo">Año (más nuevo)</option>
+        <option value="viejo">Año (más antiguo)</option>
+        <option value="signatura">Signatura</option>
+      </select>
+    </label>
+  </div>
+
+  <div>
+    <div class="list">
+      <div class="row head" aria-hidden="true"><span>Signatura</span><span>Título y autor</span><span>Año</span><span>Disponibilidad</span></div>
+      <ul class="list" id="list" style="border-top:0"></ul>
     </div>
+  </div>
+</div>
 
-    <div class="filters" id="filters" aria-label="Filtrar por categoría"></div>
-    <p class="results-count" id="resultsCount" aria-live="polite"></p>
-    <ul class="book-list" id="bookList"></ul>
-  </main>
+<script>
+(function () {
+  var books = [];
+  var $ = function (s) { return document.querySelector(s); };
 
-  <script>
-    // Datos de ejemplo. Sustitúyelos por los libros reales de la biblioteca.
-    const books = [
-      { id: 1, title: "Cien años de soledad", author: "Gabriel García Márquez", category: "Novela", isbn: "9780307474728", available: true },
-      { id: 2, title: "El principito", author: "Antoine de Saint-Exupéry", category: "Infantil", isbn: "9780156012195", available: false },
-      { id: 3, title: "Don Quijote de la Mancha", author: "Miguel de Cervantes", category: "Clásico", isbn: "9788491050216", available: true },
-      { id: 4, title: "Historia de una escalera", author: "Antonio Buero Vallejo", category: "Teatro", isbn: "9788467033533", available: true },
-      { id: 5, title: "Matemáticas básicas", author: "Varios autores", category: "Texto escolar", isbn: "9789584500000", available: false },
-    ];
-
-    const searchInput = document.getElementById("searchInput");
-    const bookList = document.getElementById("bookList");
-    const resultsCount = document.getElementById("resultsCount");
-    const filtersContainer = document.getElementById("filters");
-    let activeCategory = "Todas";
-
-    const normalize = value => value
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-
-    // Añade el texto con resaltado usando nodos DOM, sin insertar HTML del usuario.
-    function appendHighlightedText(parent, text, query) {
-      if (!query) {
-        parent.append(document.createTextNode(text));
-        return;
-      }
-
-      const normalizedText = normalize(text);
-      const ranges = [];
-      let fromIndex = 0;
-      let matchIndex;
-
-      while ((matchIndex = normalizedText.indexOf(query, fromIndex)) !== -1) {
-        ranges.push([matchIndex, matchIndex + query.length]);
-        fromIndex = matchIndex + query.length;
-      }
-
-      if (!ranges.length) {
-        parent.append(document.createTextNode(text));
-        return;
-      }
-
-      // Los índices normalizados se traducen a posiciones en el texto original,
-      // para que también se resalten búsquedas sin tildes (p. ej. "garcia").
-      const normalizedPositions = [];
-      let normalizedIndex = 0;
-      for (let originalIndex = 0; originalIndex < text.length;) {
-        const codePoint = text.codePointAt(originalIndex);
-        const character = String.fromCodePoint(codePoint);
-        const characterLength = character.length;
-        const normalizedCharacter = normalize(character);
-        for (let i = 0; i < normalizedCharacter.length; i++) {
-          normalizedPositions[normalizedIndex++] = [originalIndex, originalIndex + characterLength];
-        }
-        originalIndex += characterLength;
-      }
-
-      let originalCursor = 0;
-      for (const [start, end] of ranges) {
-        const originalStart = normalizedPositions[start]?.[0] ?? originalCursor;
-        const originalEnd = normalizedPositions[end - 1]?.[1] ?? originalStart;
-        if (originalStart > originalCursor) {
-          parent.append(document.createTextNode(text.slice(originalCursor, originalStart)));
-        }
-        const mark = document.createElement("mark");
-        mark.textContent = text.slice(originalStart, originalEnd);
-        parent.append(mark);
-        originalCursor = originalEnd;
-      }
-      if (originalCursor < text.length) {
-        parent.append(document.createTextNode(text.slice(originalCursor)));
-      }
+  // Lee un CSV (acepta coma o punto y coma, comillas y BOM de Excel)
+  function parseCSV(text) {
+    text = text.replace(/^﻿/, '');
+    var first = text.split(/\r?\n/)[0] || '';
+    var delim = (first.split(';').length > first.split(',').length) ? ';' : ',';
+    var rows = [], row = [], cur = '', q = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text[i];
+      if (q) {
+        if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; }
+        else cur += c;
+      } else if (c === '"') q = true;
+      else if (c === delim) { row.push(cur); cur = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(cur); cur = '';
+        if (row.some(function (x) { return x.trim() !== ''; })) rows.push(row);
+        row = [];
+      } else cur += c;
     }
+    row.push(cur);
+    if (row.some(function (x) { return x.trim() !== ''; })) rows.push(row);
+    return rows;
+  }
 
-    const categories = ["Todas", ...new Set(books.map(book => book.category))];
-    categories.forEach(category => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = category;
-      button.classList.toggle("active", category === activeCategory);
-      button.setAttribute("aria-pressed", String(category === activeCategory));
-      button.addEventListener("click", () => {
-        activeCategory = category;
-        filtersContainer.querySelectorAll("button").forEach(filterButton => {
-          const isActive = filterButton === button;
-          filterButton.classList.toggle("active", isActive);
-          filterButton.setAttribute("aria-pressed", String(isActive));
-        });
-        render();
+  function norm(s) {
+    return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+
+  function load() {
+    fetch('libros.csv?t=' + Date.now()).then(function (r) {
+      if (!r.ok) throw new Error('http ' + r.status);
+      return r.text();
+    }).then(function (txt) {
+      var rows = parseCSV(txt);
+      var head = rows.shift().map(function (h) { return norm(h).trim(); });
+      var idx = function (n) { return head.indexOf(n); };
+      books = rows.map(function (r) {
+        var g = function (n) { var i = idx(n); return i < 0 ? '' : (r[i] || '').trim(); };
+        var copias = Math.max(1, parseInt(g('copias'), 10) || 1);
+        var prest = Math.max(0, parseInt(g('prestados'), 10) || 0);
+        var y = parseInt(g('anio') || g('ano'), 10);
+        return { isbn: g('isbn'), titulo: g('titulo'), autor: g('autor'), anio: isNaN(y) ? null : y,
+                 categoria: g('categoria'), signatura: g('signatura'), copias: copias, prestados: Math.min(prest, copias) };
+      }).filter(function (b) { return b.titulo; });
+      var cats = {};
+      books.forEach(function (b) { if (b.categoria) cats[b.categoria] = 1; });
+      Object.keys(cats).sort().forEach(function (c) {
+        var o = document.createElement('option'); o.value = c; o.textContent = c; $('#cat').appendChild(o);
       });
-      filtersContainer.append(button);
+      render();
+    }).catch(function () {
+      $('#counts').textContent = 'No se pudo cargar el catálogo.';
+      $('#list').innerHTML = '<li class="empty">No se encontró el archivo libros.csv</li>';
     });
+  }
 
-    function render() {
-      const query = normalize(searchInput.value.trim());
-      const results = books.filter(book => {
-        const matchesCategory = activeCategory === "Todas" || book.category === activeCategory;
-        const searchableText = [book.title, book.author, book.category, book.isbn].map(normalize);
-        return matchesCategory && (!query || searchableText.some(value => value.includes(query)));
-      });
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
-      resultsCount.textContent = `${results.length} resultado(s) encontrado(s)`;
-      bookList.replaceChildren();
-
-      if (results.length === 0) {
-        const emptyMessage = document.createElement("li");
-        emptyMessage.className = "empty";
-        emptyMessage.textContent = "No se encontraron libros con esa búsqueda.";
-        bookList.append(emptyMessage);
-        return;
-      }
-
-      results.forEach(book => {
-        const item = document.createElement("li");
-        item.className = "book";
-
-        const details = document.createElement("div");
-        const title = document.createElement("h2");
-        appendHighlightedText(title, book.title, query);
-        const description = document.createElement("p");
-        appendHighlightedText(description, book.author, query);
-        description.append(document.createTextNode(` · ${book.category}`));
-        details.append(title, description);
-
-        const status = document.createElement("span");
-        status.className = `status ${book.available ? "disponible" : "prestado"}`;
-        status.textContent = book.available ? "Disponible" : "Prestado";
-        item.append(details, status);
-        bookList.append(item);
-      });
+  function render() {
+    var q = norm($('#q').value).trim().split(/\s+/).filter(Boolean);
+    var av = $('#avail').value, cat = $('#cat').value, sort = $('#sort').value;
+    var out = books.filter(function (b) {
+      var libres = b.copias - b.prestados;
+      if (av === 'free' && libres < 1) return false;
+      if (av === 'out' && b.prestados < 1) return false;
+      if (cat && b.categoria !== cat) return false;
+      var hay = norm([b.titulo, b.autor, b.anio, b.categoria, b.isbn, b.signatura].join(' '));
+      return q.every(function (t) { return hay.indexOf(t) >= 0; });
+    });
+    var cmp = {
+      titulo: function (a, b) { return a.titulo.localeCompare(b.titulo, 'es'); },
+      autor: function (a, b) { return a.autor.localeCompare(b.autor, 'es'); },
+      nuevo: function (a, b) { return (b.anio || 0) - (a.anio || 0); },
+      viejo: function (a, b) { return (a.anio || 9999) - (b.anio || 9999); },
+      signatura: function (a, b) { return a.signatura.localeCompare(b.signatura, 'es', { numeric: true }); }
+    }[sort];
+    out.sort(cmp);
+    var total = books.reduce(function (s, b) { return s + b.copias; }, 0);
+    var libresTotal = books.reduce(function (s, b) { return s + (b.copias - b.prestados); }, 0);
+    $('#counts').textContent = books.length + ' títulos · ' + libresTotal + ' de ' + total + ' ejemplares disponibles';
+    if (!out.length) {
+      $('#list').innerHTML = '<li class="empty"><strong>Sin resultados</strong><br>Prueba con otra palabra o quita algún filtro.</li>';
+      return;
     }
+    $('#list').innerHTML = out.map(function (b) {
+      var libres = b.copias - b.prestados, cls, txt;
+      if (libres === b.copias) { cls = 'ok'; txt = 'Disponible'; }
+      else if (libres > 0) { cls = 'warn'; txt = libres + ' de ' + b.copias + ' disponibles'; }
+      else { cls = 'bad'; txt = 'Prestado'; }
+      return '<li class="row">' +
+        '<span class="call">' + esc(b.signatura || '—') + '</span>' +
+        '<div class="main"><div class="title">' + esc(b.titulo) + '</div>' +
+          '<div class="author">' + esc(b.autor || 'Autor desconocido') + '</div>' +
+          (b.categoria ? '<div class="cat">' + esc(b.categoria) + '</div>' : '') + '</div>' +
+        '<span class="year">' + (b.anio || '') + '</span>' +
+        '<div class="state"><span class="pill ' + cls + '">' + txt + '</span></div></li>';
+    }).join('');
+  }
 
-    searchInput.addEventListener("input", render);
-    render();
-  </script>
+  ['#q', '#avail', '#cat', '#sort'].forEach(function (s) {
+    $(s).addEventListener('input', render);
+    $(s).addEventListener('change', render);
+  });
+  load();
+})();
+</script>
 </body>
 </html>
