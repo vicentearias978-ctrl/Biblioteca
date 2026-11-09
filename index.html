@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Busca libros por título, autor, categoría o ISBN y consulta su disponibilidad.">
+  <title>Préstamo de Libros | Biblioteca</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #f5f6f8;
+      color: #222;
+      margin: 0;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 800px; margin: 0 auto; }
+
+    h1 { text-align: center; margin: 0 0 1.5rem; }
+
+    .search-box { position: relative; margin-bottom: 1.5rem; }
+
+    .search-box input {
+      width: 100%;
+      padding: 0.9rem 1rem 0.9rem 2.8rem;
+      font: inherit;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-box input:focus { border-color: #4a7dff; }
+
+    .search-box::before {
+      content: "🔍";
+      position: absolute;
+      left: 0.9rem;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+
+    .filters {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .filters button {
+      padding: 0.4rem 0.9rem;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .filters button.active {
+      background: #4a7dff;
+      color: #fff;
+      border-color: #4a7dff;
+    }
+
+    .filters button:focus-visible { outline: 3px solid #9bb7ff; outline-offset: 2px; }
+
+    .results-count { font-size: 0.9rem; color: #666; margin-bottom: 1rem; }
+
+    .book-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .book {
+      background: #fff;
+      padding: 1rem 1.2rem;
+      border-radius: 10px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .book h2 { margin: 0 0 0.25rem; font-size: 1.05rem; }
+    .book p { margin: 0; font-size: 0.9rem; color: #666; }
+
+    .status {
+      font-size: 0.8rem;
+      padding: 0.3rem 0.7rem;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .status.disponible { background: #e3f7e8; color: #1e7e34; }
+    .status.prestado { background: #fde8e8; color: #b02a2a; }
+
+    .empty { text-align: center; color: #888; padding: 2rem; }
+    mark { background: #fff3a3; padding: 0 2px; border-radius: 3px; }
+
+    @media (max-width: 480px) {
+      body { padding: 1.25rem 0.9rem; }
+      .book { align-items: flex-start; padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>📚 Préstamo de Libros</h1>
+
+    <div class="search-box">
+      <input
+        type="search"
+        id="searchInput"
+        aria-label="Buscar libros por título, autor, categoría o ISBN"
+        placeholder="Buscar por título, autor, categoría o ISBN..."
+        autocomplete="off"
+      >
+    </div>
+
+    <div class="filters" id="filters" aria-label="Filtrar por categoría"></div>
+    <p class="results-count" id="resultsCount" aria-live="polite"></p>
+    <ul class="book-list" id="bookList"></ul>
+  </main>
+
+  <script>
+    // Datos de ejemplo. Sustitúyelos por los libros reales de la biblioteca.
+    const books = [
+      { id: 1, title: "Cien años de soledad", author: "Gabriel García Márquez", category: "Novela", isbn: "9780307474728", available: true },
+      { id: 2, title: "El principito", author: "Antoine de Saint-Exupéry", category: "Infantil", isbn: "9780156012195", available: false },
+      { id: 3, title: "Don Quijote de la Mancha", author: "Miguel de Cervantes", category: "Clásico", isbn: "9788491050216", available: true },
+      { id: 4, title: "Historia de una escalera", author: "Antonio Buero Vallejo", category: "Teatro", isbn: "9788467033533", available: true },
+      { id: 5, title: "Matemáticas básicas", author: "Varios autores", category: "Texto escolar", isbn: "9789584500000", available: false },
+    ];
+
+    const searchInput = document.getElementById("searchInput");
+    const bookList = document.getElementById("bookList");
+    const resultsCount = document.getElementById("resultsCount");
+    const filtersContainer = document.getElementById("filters");
+    let activeCategory = "Todas";
+
+    const normalize = value => value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    // Añade el texto con resaltado usando nodos DOM, sin insertar HTML del usuario.
+    function appendHighlightedText(parent, text, query) {
+      if (!query) {
+        parent.append(document.createTextNode(text));
+        return;
+      }
+
+      const normalizedText = normalize(text);
+      const ranges = [];
+      let fromIndex = 0;
+      let matchIndex;
+
+      while ((matchIndex = normalizedText.indexOf(query, fromIndex)) !== -1) {
+        ranges.push([matchIndex, matchIndex + query.length]);
+        fromIndex = matchIndex + query.length;
+      }
+
+      if (!ranges.length) {
+        parent.append(document.createTextNode(text));
+        return;
+      }
+
+      // Los índices normalizados se traducen a posiciones en el texto original,
+      // para que también se resalten búsquedas sin tildes (p. ej. "garcia").
+      const normalizedPositions = [];
+      let normalizedIndex = 0;
+      for (let originalIndex = 0; originalIndex < text.length;) {
+        const codePoint = text.codePointAt(originalIndex);
+        const character = String.fromCodePoint(codePoint);
+        const characterLength = character.length;
+        const normalizedCharacter = normalize(character);
+        for (let i = 0; i < normalizedCharacter.length; i++) {
+          normalizedPositions[normalizedIndex++] = [originalIndex, originalIndex + characterLength];
+        }
+        originalIndex += characterLength;
+      }
+
+      let originalCursor = 0;
+      for (const [start, end] of ranges) {
+        const originalStart = normalizedPositions[start]?.[0] ?? originalCursor;
+        const originalEnd = normalizedPositions[end - 1]?.[1] ?? originalStart;
+        if (originalStart > originalCursor) {
+          parent.append(document.createTextNode(text.slice(originalCursor, originalStart)));
+        }
+        const mark = document.createElement("mark");
+        mark.textContent = text.slice(originalStart, originalEnd);
+        parent.append(mark);
+        originalCursor = originalEnd;
+      }
+      if (originalCursor < text.length) {
+        parent.append(document.createTextNode(text.slice(originalCursor)));
+      }
+    }
+
+    const categories = ["Todas", ...new Set(books.map(book => book.category))];
+    categories.forEach(category => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = category;
+      button.classList.toggle("active", category === activeCategory);
+      button.setAttribute("aria-pressed", String(category === activeCategory));
+      button.addEventListener("click", () => {
+        activeCategory = category;
+        filtersContainer.querySelectorAll("button").forEach(filterButton => {
+          const isActive = filterButton === button;
+          filterButton.classList.toggle("active", isActive);
+          filterButton.setAttribute("aria-pressed", String(isActive));
+        });
+        render();
+      });
+      filtersContainer.append(button);
+    });
+
+    function render() {
+      const query = normalize(searchInput.value.trim());
+      const results = books.filter(book => {
+        const matchesCategory = activeCategory === "Todas" || book.category === activeCategory;
+        const searchableText = [book.title, book.author, book.category, book.isbn].map(normalize);
+        return matchesCategory && (!query || searchableText.some(value => value.includes(query)));
+      });
+
+      resultsCount.textContent = `${results.length} resultado(s) encontrado(s)`;
+      bookList.replaceChildren();
+
+      if (results.length === 0) {
+        const emptyMessage = document.createElement("li");
+        emptyMessage.className = "empty";
+        emptyMessage.textContent = "No se encontraron libros con esa búsqueda.";
+        bookList.append(emptyMessage);
+        return;
+      }
+
+      results.forEach(book => {
+        const item = document.createElement("li");
+        item.className = "book";
+
+        const details = document.createElement("div");
+        const title = document.createElement("h2");
+        appendHighlightedText(title, book.title, query);
+        const description = document.createElement("p");
+        appendHighlightedText(description, book.author, query);
+        description.append(document.createTextNode(` · ${book.category}`));
+        details.append(title, description);
+
+        const status = document.createElement("span");
+        status.className = `status ${book.available ? "disponible" : "prestado"}`;
+        status.textContent = book.available ? "Disponible" : "Prestado";
+        item.append(details, status);
+        bookList.append(item);
+      });
+    }
+
+    searchInput.addEventListener("input", render);
+    render();
+  </script>
+</body>
+</html>
