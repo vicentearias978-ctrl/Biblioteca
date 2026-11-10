@@ -1,3 +1,3 @@
-isbn,titulo,autor,anio,categoria,signatura,copias,prestados
-,Metamorfosis,Pepe,1999,Poesía,7A,1,0
-,el principito, Pepito,1998,Novela,7a,1,0
+id,isbn,titulo,autor,editorial,anio,categoria,ubicacion,estado
+LIB-0001,,Metamorfosis,Pepe,,1999,Poesía,7A,disponible
+LIB-0002,,El principito,Pepito,,1998,Novela,7A,disponible
